@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"sync"
 	"time"
 
@@ -56,11 +55,18 @@ func New(opts *Options, l zerolog.Logger) (i *Interpreter) {
 		l:          l,
 		state: &state{
 			ignoreIndex:  make(ignoreIndexes, 0),
-			foreach:      sync.Map{},
 			buf:          &bytes.Buffer{},
 			Mutex:        &sync.Mutex{},
 			depsResolver: newDependencyResolver(),
 			varRegistryLocal: variableRegistry{
+				entries: make(map[string]vars, 0),
+				Mutex:   &sync.Mutex{},
+			},
+			varRegistryGlobal: variableRegistry{
+				entries: make(map[string]vars, 0),
+				Mutex:   &sync.Mutex{},
+			},
+			varRegistryForeach: variableRegistry{
 				entries: make(map[string]vars, 0),
 				Mutex:   &sync.Mutex{},
 			},
@@ -209,15 +215,15 @@ func (i *Interpreter) initScopedVars() {
 				continue
 			}
 			// Skip the var declaration keyword.
-			i.registerGlobalVar(strings.TrimSuffix(filepath.Base(vf), filepath.Ext(vf)), split[1:])
+			i.setGlobalVar(split[1:])
 		}
 	}
 }
 
-// registerGlobalVar parses and registers an unscoped variable from the given args.
-func (i *Interpreter) registerGlobalVar(varFile string, tokens [][]byte) {
+// setGlobalVar parses and registers an unscoped variable from the given args.
+func (i *Interpreter) setGlobalVar(tokens [][]byte) {
 	variable := variableFromArgs(tokens)
-	i.state.registerGlobalVar(varFile, variable)
+	i.state.setGlobalVar(variable)
 }
 
 func (i *Interpreter) writeInterpretedFile(inPath, outPath string) (err error) {

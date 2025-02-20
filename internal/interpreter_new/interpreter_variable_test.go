@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	r "github.com/stretchr/testify/require"
 )
 
@@ -166,4 +167,138 @@ func TestSetLocalVar(t *testing.T) {
 	r.ErrorIs(t, err, errEmptyVariableParameter)
 	err = i.setLocalVar(keyRegisterName, [][]byte{[]byte(keyName + "=")})
 	r.ErrorIs(t, err, errEmptyVariableParameter)
+}
+
+func TestVariableSetAndGet(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		content       [][]byte
+		expectedName  string
+		expectedValue string
+	}
+
+	const (
+		keyName  = "name"
+		keyValue = "value"
+	)
+
+	l := log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	ip := New(&Options{NoStats: true}, l)
+
+	testCases := []testCase{
+		{
+			expectedName:  keyName,
+			expectedValue: keyValue,
+			content: [][]byte{
+				[]byte(keyName),
+				[]byte(""),
+				[]byte("="),
+				[]byte(""),
+				[]byte(keyValue),
+			},
+		},
+		{
+			expectedName:  keyName,
+			expectedValue: keyValue,
+			content: [][]byte{
+				[]byte(keyName),
+				[]byte(""),
+				[]byte(""),
+				[]byte(""),
+				[]byte("="),
+				[]byte(keyValue),
+			},
+		},
+		{
+			expectedName:  keyName,
+			expectedValue: keyValue,
+			content: [][]byte{
+				[]byte(keyName),
+				[]byte(""),
+				[]byte(""),
+				[]byte("="),
+				[]byte(""),
+				[]byte(""),
+				[]byte(keyValue),
+			},
+		},
+		{
+			expectedName:  keyName,
+			expectedValue: keyValue,
+			content: [][]byte{
+				[]byte(keyName),
+				[]byte(""),
+				[]byte("="),
+				[]byte(""),
+				[]byte(""),
+				[]byte(""),
+				[]byte(keyValue),
+			},
+		},
+		{
+			expectedName:  keyName,
+			expectedValue: keyValue,
+			content: [][]byte{
+				[]byte(keyName + "="),
+				[]byte(""),
+				[]byte(""),
+				[]byte(keyValue),
+			},
+		},
+		{
+			expectedName:  keyName,
+			expectedValue: keyValue,
+			content: [][]byte{
+				[]byte(keyName),
+				[]byte(""),
+				[]byte(""),
+				[]byte(""),
+				[]byte("=" + keyValue),
+			},
+		},
+	}
+
+	for i, tc := range testCases {
+		v := variableFromArgs(tc.content)
+
+		// Global variables.
+		// Set a new variable.
+		ip.state.setGlobalVar(v)
+		rvar := ip.state.varLookupGlobal(v.name)
+		r.Exactly(t, v.name, rvar.Name(), "global var name differs: case=%d, expected=%s, actual=%s", i, v.name, rvar.Name())
+		r.Exactly(t, v.value, rvar.Value(), "global var value differs: case=%d, expected=%s, actual=%s", i, v.value, rvar.Value())
+		// Unset the variable's value.
+		ip.state.setGlobalVar(variable{name: v.name})
+		rvar = ip.state.varLookupGlobal(v.name)
+		r.Exactly(t, v.name, rvar.Name(), "cleared global var name differs: case=%d, expected=%s, actual=%s", i, v.name, rvar.Name())
+		r.Exactly(t, "", rvar.Value(), "cleared global var value differs: case=%d, expected=%s, actual=%s", i, v.value, rvar.Value())
+
+		// Local variables.
+		// Set a new variable.
+		register := "test123"
+		ip.state.setLocalVar(register, v)
+		rvar = ip.state.varLookupLocal(register, v.name)
+		r.Exactly(t, v.name, rvar.Name(), "local var name differs: case=%d, expected=%s, actual=%s", i, v.name, rvar.Name())
+		r.Exactly(t, v.value, rvar.Value(), "local var value differs: case=%d, expected=%s, actual=%s", i, v.value, rvar.Value())
+		// Unset the variable's value.
+		ip.state.setLocalVar(register, variable{name: v.name})
+		rvar = ip.state.varLookupLocal(register, v.name)
+		r.Exactly(t, v.name, rvar.Name(), "cleared local var name differs: case=%d, expected=%s, actual=%s", i, v.name, rvar.Name())
+		r.Exactly(t, "", rvar.Value(), "cleared local var value differs: case=%d, expected=%s, actual=%s", i, v.value, rvar.Value())
+
+		// Foreach variables.
+		// Set a new variable.
+		register = "testtest123"
+		ip.state.setForeachVar(register, v)
+		rvar = ip.state.varLookupForeach(register, v.name)
+		r.Exactly(t, v.name, rvar.Name(), "local var name differs: case=%d, expected=%s, actual=%s", i, v.name, rvar.Name())
+		r.Exactly(t, v.value, rvar.Value(), "local var value differs: case=%d, expected=%s, actual=%s", i, v.value, rvar.Value())
+		// Unset the variable's value.
+		ip.state.setForeachVar(register, variable{name: v.name})
+		rvar = ip.state.varLookupForeach(register, v.name)
+		r.Exactly(t, v.name, rvar.Name(), "cleared local var name differs: case=%d, expected=%s, actual=%s", i, v.name, rvar.Name())
+		r.Exactly(t, "", rvar.Value(), "cleared local var value differs: case=%d, expected=%s, actual=%s", i, v.value, rvar.Value())
+
+	}
 }

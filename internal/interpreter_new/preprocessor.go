@@ -33,12 +33,10 @@ func (i *Interpreter) preprocess(pd *preprocessorDirective, lineDisplayNum int) 
 
 	switch pd.name {
 	case directiveNameForeach:
-		// TODO: Implementation.
-		return
+		return i.foreachStart(pd)
 
 	case directiveNameForeachEnd:
-		// TODO: Implementation.
-		return
+		return i.foreachEnd(pd)
 
 	case directiveNameIgnore:
 		return i.ignoreStart(pd)
@@ -50,9 +48,9 @@ func (i *Interpreter) preprocess(pd *preprocessorDirective, lineDisplayNum int) 
 		return i.importPath(pd)
 
 	case directiveNameVariable:
+		return i.setLocalVar(pd.fileName, pd.args)
+
 	default:
 		return fmt.Errorf("unknown preprocessor directive: %s", pd.name)
 	}
-
-	return
 }

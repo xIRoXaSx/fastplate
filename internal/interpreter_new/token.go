@@ -124,7 +124,7 @@ func (i *Interpreter) resolve(fileName string, line []byte, additionalVars []com
 			}
 
 			// Check function's args for variables.
-			varsFromArgs := make([]variable, 0)
+			varsFromArgs := make([]common.Variable, 0)
 			for j := range args {
 				v := i.state.varLookup(fileName, string(args[j]))
 				if v.Name() == "" {
@@ -199,7 +199,7 @@ func replaceVar(line, varName, replacement []byte) []byte {
 	return bytes.ReplaceAll(line, matched, replacement)
 }
 
-func remapArgsWithVariables(fncNameStr string, varsFromArgs, additionalVars []variable) (values [][]byte, err error) {
+func remapArgsWithVariables(fncNameStr string, varsFromArgs, additionalVars []common.Variable) (values [][]byte, err error) {
 	values = make([][]byte, len(varsFromArgs))
 
 additionalVar:
